@@ -1,0 +1,84 @@
+Q1: How does the if statement in Go differ from other languages like Python or Java?
+
+No parentheses required around condition: In Go, the if statement does not require parentheses around the condition, unlike Java or C. However, curly braces {} are mandatory, even for single-line statements.
+
+Optional variable initialization in if: Go allows you to initialize a variable directly in the if statement. This is useful when you want to evaluate an expression and use the result in the condition.
+
+if val := someFunc(); val > 10 {
+    fmt.Println("Value is greater than 10")
+}
+
+
+Q2: What are the different ways to write a for loop in Go?
+
+Standard for loop:
+
+for i := 0; i < 10; i++ {
+    fmt.Println(i)
+}
+
+Infinite loop:
+
+for {
+    fmt.Println("This will run forever")
+}
+
+While-like loop: Go doesn't have a while keyword, but you can achieve the same behavior using a for loop with just the condition.
+
+i := 0
+for i < 5 {
+    fmt.Println(i)
+    i++
+}
+
+Loop over a collection (range loop): You can loop over arrays, slices, maps, and strings using the range keyword.
+
+nums := []int{1, 2, 3, 4, 5}
+for index, value := range nums {
+    fmt.Printf("Index: %d, Value: %d\n", index, value)
+}
+
+Q3: How does a switch statement in Go differ from switch in languages like C or Java?
+
+No need for break: In Go, each case statement automatically breaks after execution, so you don't need to add an explicit break to stop fallthrough (as is required in C or Java). If you want fallthrough, you must use the fallthrough keyword.
+
+Example (Go):
+
+switch x {
+case 1:
+    fmt.Println("One")
+    fallthrough
+case 2:
+    fmt.Println("Two")  // This will run if `x == 1`, due to fallthrough
+}
+
+Multiple values per case: Go allows multiple values in a single case statement.
+
+switch x {
+case 1, 2, 3:
+    fmt.Println("x is 1, 2, or 3")
+}
+
+Expression-less switch: In Go, you can omit the expression after switch. This turns the switch into an alternative to multiple if-else statements.
+
+switch {
+case x < 0:
+    fmt.Println("x is negative")
+case x == 0:
+    fmt.Println("x is zero")
+case x > 0:
+    fmt.Println("x is positive")
+}
+
+Type switch: Go supports type switches, which allow you to switch based on the type of an interface value.
+
+var i interface{} = "hello"
+switch v := i.(type) {
+case int:
+    fmt.Println("i is an integer")
+case string:
+    fmt.Println("i is a string:", v)
+default:
+    fmt.Println("i is of unknown type")
+}
+

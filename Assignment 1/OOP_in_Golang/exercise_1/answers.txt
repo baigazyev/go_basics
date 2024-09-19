@@ -1,0 +1,32 @@
+Q1: How do you define a struct in Go?
+A struct in Go is defined using the type keyword followed by the name of the struct and the struct keyword. The fields of the struct are defined inside curly braces.
+
+Example: 
+
+type Person struct {
+	Name string
+	Age  int
+}
+
+Q2: How do methods differ from regular functions in Go?
+Methods in Go are functions with a receiver. The receiver is a special argument that allows the method to be associated with a specific type (usually a struct). This allows the method to act on the data of that specific type.
+
+Regular functions do not have a receiver and are not associated with any type.
+
+func (p Person) Greet() {
+    fmt.Println("Hello,", p.Name)
+}
+
+Q3: Can a method in Go be associated with types other than structs?
+Yes, methods in Go can be associated with any type, not just structs. You can define methods for any type that you create, including custom types based on primitive types, slices, maps, or even interfaces.
+
+type MyInt int
+
+func (m MyInt) Double() int {
+    return int(m) * 2
+}
+
+func main() {
+    var num MyInt = 5
+    fmt.Println(num.Double())  // Output: 10
+}

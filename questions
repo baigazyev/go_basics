@@ -1,0 +1,5 @@
+What command did you use to compile and run your Go program?  go run main.go
+What are the basic components of a Go program (e.g., package, import,
+function)? Package declaration, import statements, functions, variables, statements and expressions, types, comments.
+How does Go handle package imports? Once imported, the package name becomes an accessor for the contents of that package. Conveniently, all the packages in the Go standard library have a package name which is the same as the final element of their import path. That means we can use the Intn() function from math/rand by calling rand.
+

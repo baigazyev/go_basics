@@ -1,0 +1,53 @@
+Q1: How do you work with JSON in Go?
+
+Go provides the encoding/json package, which makes working with JSON data straightforward.
+
+Encoding (to JSON): You use json.Marshal to encode a Go data structure (such as a struct, slice, or map) into JSON format.
+
+Example: 
+
+jsonData, err := json.Marshal(p)
+
+Decoding (from JSON): You use json.Unmarshal to decode JSON data into a Go data structure (like a struct).
+
+Example: 
+
+err := json.Unmarshal([]byte(jsonString), &p)
+
+Q2: What role do struct tags play in JSON encoding/decoding?
+
+Struct tags are used to control how the fields of a struct are serialized or deserialized when working with JSON. These tags are specified within backticks (`) and often include the field name for JSON as well as optional settings.
+
+Example of struct tags:
+
+type Product struct {
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Quantity int     `json:"quantity"`
+}
+
+In this case, json:"name" tells Go to use the JSON key "name" for the Name field when encoding to or decoding from JSON. This allows you to have different field names in the struct and the resulting JSON.
+
+Struct tags also support options like omitempty (which omits empty fields) and - (which excludes fields from JSON).
+
+
+Q3: How do you handle errors that may occur during JSON encoding/decoding?
+
+Errors may occur during both encoding (using json.Marshal) and decoding (using json.Unmarshal). In Go, errors are handled using the standard Go error handling pattern where you check the return value of the function.
+
+For encoding:
+
+jsonData, err := json.Marshal(p)
+if err != nil {
+    // Handle error
+    fmt.Println("Error encoding JSON:", err)
+}
+
+For decoding: 
+
+err := json.Unmarshal([]byte(jsonString), &p)
+if err != nil {
+    // Handle error
+    fmt.Println("Error decoding JSON:", err)
+}
+
