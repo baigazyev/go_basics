@@ -1,0 +1,20 @@
+Q1: What is the difference between using var and := to declare variables?
+
+The var keyword allows you to declare variables with an explicit type. It can be used at both the package and function level.
+You can declare a variable without initializing it, in which case it will have a zero value (e.g., 0 for int, "" for string, false for bool).
+
+The shorthand syntax is only allowed inside functions and automatically infers the variable’s type based on the value you assign.
+You must initialize a variable when using :=, so it cannot be used without an initial value.
+
+Key Differences:
+
+var allows declaring variables with or without initial values and requires explicit typing if the type isn't inferred.
+:= is more concise but can only be used within functions and requires immediate initialization with an inferred type.
+
+Q2: How do you print the type of a variable in Go?
+
+fmt.Printf("Type of age is: %T\n", age)
+
+Q3: Can you change the type of a variable after it has been declared? Why or why not?
+
+No, you cannot change the type of a variable after it has been declared.

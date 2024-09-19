@@ -1,0 +1,64 @@
+Q1: How do you define and implement an interface in Go?
+
+To define an interface in Go, use the type keyword followed by the interface name and the interface keyword. Inside the interface, you define a set of method signatures that must be implemented by any type that wants to satisfy the interface.
+
+Example:
+
+type Shape interface {
+	Area() float64
+}
+
+To implement an interface, a type must define all the methods required by the interface. There is no explicit declaration of "implementing" an interface in Go; if a type has the necessary methods, it automatically satisfies the interface.
+
+func (c Circle) Area() float64 {
+	return math.Pi * c.Radius * c.Radius
+}
+
+Q2: What is the role of interfaces in achieving polymorphism in Go?
+
+Interfaces in Go provide a way to achieve polymorphism by allowing you to define a set of methods (behaviors) without specifying the exact types that must implement those methods. This enables different types to be treated the same way if they implement the same interface, regardless of their underlying structure.
+
+Example: 
+
+func PrintArea(s Shape) {
+	fmt.Printf("Area: %.2f\n", s.Area())
+}
+
+You can pass any type that implements the Shape interface to this function (e.g., Circle or Rectangle). The function behaves polymorphically, operating on any shape without needing to know the specific type.
+
+Q3: How can you check if a type implements a certain interface?
+
+Go provides two main ways to check if a type implements an interface:
+
+Compile-time check (implicit): If a type implements all the methods of an interface, Go automatically recognizes that the type satisfies the interface.
+
+Example: 
+
+var s Shape = Circle{Radius: 5}  // Circle implements Shape
+
+Type assertion: You can check at runtime if a type implements an interface using a type assertion.
+
+Example: 
+
+var s Shape = Circle{Radius: 5}
+circle, ok := s.(Circle)  // Check if s is of type Circle
+if ok {
+	fmt.Println("s is a Circle")
+}
+
+Type switches: A type switch can also be used to check which specific type is being used when an interface is implemented by multiple types.
+
+Example: 
+
+func DescribeShape(s Shape) {
+	switch v := s.(type) {
+	case Circle:
+		fmt.Println("Shape is a Circle")
+	case Rectangle:
+		fmt.Println("Shape is a Rectangle")
+	default:
+		fmt.Println("Unknown shape type", v)
+	}
+}
+
+

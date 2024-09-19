@@ -1,0 +1,4 @@
+What command did you use to compile and run your Go program? go run main.go
+○ What are the basic components of a Go program (e.g., package, import,
+function)? Packages, Functions, Variables, Types, Control structures, Pointers, Structs, Interfaces, Goroutines, Channels.
+○ How does Go handle package imports? In Go, we use the import keyword to include external packages or libraries in your code.

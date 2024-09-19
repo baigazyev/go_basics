@@ -1,0 +1,54 @@
+Q1: What is embedding in Go, and how does it relate to composition?
+Embedding in Go allows one struct to include another struct, which enables composition. This is done by simply declaring a struct field without giving it a name (anonymous field). This embeds the fields and methods of the embedded struct into the outer struct.
+
+Embedding supports composition (as opposed to inheritance) by allowing the outer struct to reuse the functionality of the embedded struct. This creates a "has-a" relationship rather than an "is-a" relationship, which is a key aspect of composition.
+
+Example: 
+
+type Employee struct {
+	Name string
+	ID   int
+}
+
+type Manager struct {
+	Employee   // Embedding Employee
+	Department string
+}
+
+Q2: How does Go handle method calls on embedded types?
+
+When you call a method on an outer struct that embeds another struct, Go automatically promotes the methods of the embedded struct, making them callable directly from the outer struct.
+
+manager := Manager{
+    Employee: Employee{
+        Name: "Alice",
+        ID:   101,
+    },
+    Department: "Engineering",
+}
+
+manager.Work()  // Calls Employee's Work method
+
+Q3: Can an embedded type override a method from the outer struct?
+
+No, an embedded type cannot override a method from the outer struct. However, the outer struct can define a method with the same name as a method in the embedded struct, and this method will take precedence when called on the outer struct.
+
+For example:
+
+// Method in outer struct (Manager) overrides the embedded method (Employee)
+func (m Manager) Work() {
+	fmt.Printf("Manager Name: %s, Department: %s\n", m.Name, m.Department)
+}
+
+func main() {
+	manager := Manager{
+		Employee: Employee{
+			Name: "Alice",
+			ID:   101,
+		},
+		Department: "Engineering",
+	}
+
+	manager.Work()  // Output: Manager Name: Alice, Department: Engineering
+}
+

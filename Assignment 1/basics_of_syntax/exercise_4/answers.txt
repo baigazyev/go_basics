@@ -1,0 +1,32 @@
+Q1: How do you define a function with multiple return values in Go?
+
+In Go, you define a function with multiple return values by specifying multiple types in the return statement. The return values are then provided as a comma-separated list.
+
+func divide(a int, b int) (int, int) {
+    quotient := a / b
+    remainder := a % b
+    return quotient, remainder
+}
+
+In this example, divide returns two int values.
+
+
+Q2: What is the significance of named return values in Go?
+
+Named return values are optional but can make the code more readable by giving names to the return values. If you declare the names of return variables in the function signature, these variables are automatically initialized with their zero values. You can then return from the function using a simple return statement without explicitly specifying the values.
+
+func divide(a int, b int) (quotient int, remainder int) {
+	quotient = a / b
+	remainder = a % b
+	return  // Implicitly returns quotient and remainder
+}
+
+Q3: How can you ignore certain return values if you don't need them?
+
+In Go, if you don't need a return value, you can use the blank identifier _ to ignore it. This is useful when a function returns multiple values but you're only interested in one or some of them.
+
+Example:
+
+quot, _ := divide(10, 3)  // Ignoring the remainder
+fmt.Println("Quotient:", quot)
+
