@@ -1,266 +1,255 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-	"strconv"
+    "database/sql"
+    "encoding/json"
+    "log"
+    "net/http"
+    "strconv"
 
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+    "github.com/gorilla/mux"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
+    _ "github.com/lib/pq"
 )
 
-// PostgreSQL connection information
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "myuser"
-	password = "password"
-	dbname   = "mydb6"
-)
-
-// User model for GORM
-type User struct {
-	ID   uint   `gorm:"primaryKey" json:"id"`
-	Name string `gorm:"unique;not null" json:"name"`
-	Age  int    `gorm:"not null" json:"age"`
-}
-
+// Database variables
 var (
-	dbSQL  *sql.DB
-	dbGORM *gorm.DB
-	err    error
+    db    *sql.DB
+    gormDB *gorm.DB
 )
+
+// User struct
+type User struct {
+    ID    uint   `json:"id" gorm:"primaryKey"`
+    Name  string `json:"name" gorm:"unique;not null"`
+    Age   int    `json:"age" gorm:"not null"`
+}
 
 func main() {
-	// Set up PostgreSQL connection for database/sql
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	dbSQL, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer dbSQL.Close()
+    // PostgreSQL connection setup for SQL and GORM
+    var err error
+    db, err = sql.Open("postgres", "user=myuser password=password dbname=mydb8 sslmode=disable")
+    if err != nil {
+        log.Fatal("Failed to connect to the database using sql:", err)
+    }
+    defer db.Close()
 
-	// Set up PostgreSQL connection for GORM
-	dbGORM, err = gorm.Open(postgres.Open(psqlInfo), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Failed to connect to the database using GORM:", err)
-	}
+    dsn := "host=localhost user=myuser password=password dbname=mydb8 port=5432 sslmode=disable TimeZone=Asia/Almaty"
+    gormDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+    if err != nil {
+        log.Fatal("Failed to connect to the database using GORM:", err)
+    }
 
-	// Auto-migrate the User table
-	err = dbGORM.AutoMigrate(&User{})
-	if err != nil {
-		log.Fatal("Failed to migrate database:", err)
-	}
+    // Setup connection pooling
+    sqlDB, err := gormDB.DB()
+    if err != nil {
+        log.Fatal(err)
+    }
+    sqlDB.SetMaxOpenConns(10)
+    sqlDB.SetMaxIdleConns(5)
 
-	// Setting up routes
-	router := mux.NewRouter()
+    // Auto migrate the user table
+    gormDB.AutoMigrate(&User{})
 
-	// Routes using database/sql
-	router.HandleFunc("/users/sql", getUsersSQL).Methods("GET")
-	router.HandleFunc("/users/sql", createUserSQL).Methods("POST")
-	router.HandleFunc("/users/sql/{id:[0-9]+}", updateUserSQL).Methods("PUT")
-	router.HandleFunc("/users/sql/{id:[0-9]+}", deleteUserSQL).Methods("DELETE")
+    // Setup router
+    router := mux.NewRouter()
 
-	// Routes using GORM
-	router.HandleFunc("/users/gorm", getUsersGORM).Methods("GET")
-	router.HandleFunc("/users/gorm", createUserGORM).Methods("POST")
-	router.HandleFunc("/users/gorm/{id:[0-9]+}", updateUserGORM).Methods("PUT")
-	router.HandleFunc("/users/gorm/{id:[0-9]+}", deleteUserGORM).Methods("DELETE")
+    // SQL-based routes
+    router.HandleFunc("/sql/users", getUsersSQL).Methods("GET")
+    router.HandleFunc("/sql/users", createUserSQL).Methods("POST")
+    router.HandleFunc("/sql/users/{id}", updateUserSQL).Methods("PUT")
+    router.HandleFunc("/sql/users/{id}", deleteUserSQL).Methods("DELETE")
 
-	// Start server
-	log.Fatal(http.ListenAndServe(":8080", router))
+    // GORM-based routes
+    router.HandleFunc("/gorm/users", getGormUsers).Methods("GET")
+    router.HandleFunc("/gorm/users", createGormUser).Methods("POST")
+    router.HandleFunc("/gorm/users/{id}", updateGormUser).Methods("PUT")
+    router.HandleFunc("/gorm/users/{id}", deleteGormUser).Methods("DELETE")
+
+    log.Println("Server running on port 8080")
+    log.Fatal(http.ListenAndServe(":8080", router))
 }
 
-// Direct SQL Handlers
+//////////////////////// SQL Handlers ////////////////////////
 
-// Fetch all users with filtering, sorting, and pagination using database/sql
 func getUsersSQL(w http.ResponseWriter, r *http.Request) {
-	ageFilter := r.URL.Query().Get("age")
-	sortBy := r.URL.Query().Get("sort")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
+    ageFilter := r.URL.Query().Get("age")
+    sort := r.URL.Query().Get("sort")
+    limit := r.URL.Query().Get("limit")
+    offset := r.URL.Query().Get("offset")
 
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
+    query := "SELECT id, name, age FROM users WHERE 1=1"
+    params := []interface{}{}
+    if ageFilter != "" {
+        query += " AND age >= $1"
+        params = append(params, ageFilter)
+    }
+    if sort == "asc" {
+        query += " ORDER BY name ASC"
+    } else if sort == "desc" {
+        query += " ORDER BY name DESC"
+    }
+    query += " LIMIT $2 OFFSET $3"
+    params = append(params, limit, offset)
 
-	offset := (page - 1) * pageSize
+    rows, err := db.Query(query, params...)
+    if err != nil {
+        http.Error(w, "Error querying users: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-	query := `SELECT id, name, age FROM users WHERE ($1::int IS NULL OR age >= $1)`
-	if sortBy == "name" {
-		query += ` ORDER BY name`
-	} else {
-		query += ` ORDER BY id`
-	}
-	query += ` LIMIT $2 OFFSET $3`
+    var users []User
+    for rows.Next() {
+        var user User
+        if err := rows.Scan(&user.ID, &user.Name, &user.Age); err != nil {
+            http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
+            return
+        }
+        users = append(users, user)
+    }
 
-	var rows *sql.Rows
-	var err error
-	if ageFilter != "" {
-		age, _ := strconv.Atoi(ageFilter)
-		rows, err = dbSQL.Query(query, age, pageSize, offset)
-	} else {
-		rows, err = dbSQL.Query(query, nil, pageSize, offset)
-	}
-
-	if err != nil {
-		http.Error(w, "Failed to query users", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var users []User
-	for rows.Next() {
-		var user User
-		err := rows.Scan(&user.ID, &user.Name, &user.Age)
-		if err != nil {
-			http.Error(w, "Failed to scan user", http.StatusInternalServerError)
-			return
-		}
-		users = append(users, user)
-	}
-
-	json.NewEncoder(w).Encode(users)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(users)
 }
 
-// Insert a new user using database/sql
 func createUserSQL(w http.ResponseWriter, r *http.Request) {
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+    var user User
+    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	query := `INSERT INTO users (name, age) VALUES ($1, $2) RETURNING id`
-	err := dbSQL.QueryRow(query, user.Name, user.Age).Scan(&user.ID)
-	if err != nil {
-		http.Error(w, "Failed to insert user. Ensure the name is unique.", http.StatusInternalServerError)
-		return
-	}
+    if user.Name == "" {
+        http.Error(w, "Name cannot be empty", http.StatusBadRequest)
+        return
+    }
 
-	json.NewEncoder(w).Encode(user)
+    // Check if name is unique
+    var count int
+    err := db.QueryRow("SELECT COUNT(*) FROM users WHERE name=$1", user.Name).Scan(&count)
+    if err != nil {
+        http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+    if count > 0 {
+        http.Error(w, "Name already exists", http.StatusConflict)
+        return
+    }
+
+    _, err = db.Exec("INSERT INTO users (name, age) VALUES ($1, $2)", user.Name, user.Age)
+    if err != nil {
+        http.Error(w, "Error inserting user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
 }
 
-// Update a user by ID using database/sql
 func updateUserSQL(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+    vars := mux.Vars(r)
+    id := vars["id"]
 
-	query := `UPDATE users SET name = $1, age = $2 WHERE id = $3`
-	_, err := dbSQL.Exec(query, user.Name, user.Age, id)
-	if err != nil {
-		http.Error(w, "Failed to update user. Ensure the name is unique.", http.StatusInternalServerError)
-		return
-	}
+    var user User
+    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "User updated successfully"})
+    _, err := db.Exec("UPDATE users SET name=$1, age=$2 WHERE id=$3", user.Name, user.Age, id)
+    if err != nil {
+        http.Error(w, "Error updating user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
 }
 
-// Delete a user by ID using database/sql
 func deleteUserSQL(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+    vars := mux.Vars(r)
+    id := vars["id"]
 
-	query := `DELETE FROM users WHERE id = $1`
-	_, err := dbSQL.Exec(query, id)
-	if err != nil {
-		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
-		return
-	}
+    _, err := db.Exec("DELETE FROM users WHERE id=$1", id)
+    if err != nil {
+        http.Error(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "User deleted successfully"})
+    w.WriteHeader(http.StatusOK)
 }
 
-// GORM Handlers
+//////////////////////// GORM Handlers ////////////////////////
 
-// Fetch all users with filtering, sorting, and pagination using GORM
-func getUsersGORM(w http.ResponseWriter, r *http.Request) {
-	ageFilter := r.URL.Query().Get("age")
-	sortBy := r.URL.Query().Get("sort")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
+func getGormUsers(w http.ResponseWriter, r *http.Request) {
+    ageFilter := r.URL.Query().Get("age")
+    sort := r.URL.Query().Get("sort")
+    limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+    offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
+    var users []User
+    query := gormDB.Limit(limit).Offset(offset)
 
-	var users []User
-	query := dbGORM.Model(&User{})
-	if ageFilter != "" {
-		age, _ := strconv.Atoi(ageFilter)
-		query = query.Where("age >= ?", age)
-	}
+    if ageFilter != "" {
+        query = query.Where("age >= ?", ageFilter)
+    }
+    if sort == "asc" {
+        query = query.Order("name asc")
+    } else if sort == "desc" {
+        query = query.Order("name desc")
+    }
 
-	if sortBy == "name" {
-		query = query.Order("name")
-	} else {
-		query = query.Order("id")
-	}
+    result := query.Find(&users)
+    if result.Error != nil {
+        http.Error(w, "Error querying users: "+result.Error.Error(), http.StatusInternalServerError)
+        return
+    }
 
-	result := query.Limit(pageSize).Offset((page - 1) * pageSize).Find(&users)
-	if result.Error != nil {
-		http.Error(w, "Failed to query users", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(users)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(users)
 }
 
-// Insert a new user using GORM
-func createUserGORM(w http.ResponseWriter, r *http.Request) {
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+func createGormUser(w http.ResponseWriter, r *http.Request) {
+    var user User
+    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	if err := dbGORM.Create(&user).Error; err != nil {
-		http.Error(w, "Failed to insert user. Ensure the name is unique.", http.StatusInternalServerError)
-		return
-	}
+    if err := gormDB.Create(&user).Error; err != nil {
+        http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
 
-	json.NewEncoder(w).Encode(user)
+    w.WriteHeader(http.StatusCreated)
 }
 
-// Update a user by ID using GORM
-func updateUserGORM(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+func updateGormUser(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+    id := vars["id"]
 
-	if err := dbGORM.Model(&User{}).Where("id = ?", id).Updates(user).Error; err != nil {
-		http.Error(w, "Failed to update user. Ensure the name is unique.", http.StatusInternalServerError)
-		return
-	}
+    var user User
+    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "User updated successfully"})
+    if err := gormDB.Model(&User{}).Where("id = ?", id).Updates(user).Error; err != nil {
+        http.Error(w, "Error updating user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
 }
 
-// Delete a user by ID using GORM
-func deleteUserGORM(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+func deleteGormUser(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+    id := vars["id"]
 
-	if err := dbGORM.Delete(&User{}, id).Error; err != nil {
-		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
-		return
-	}
+    if err := gormDB.Delete(&User{}, id).Error; err != nil {
+        http.Error(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "User deleted successfully"})
+    w.WriteHeader(http.StatusOK)
 }
