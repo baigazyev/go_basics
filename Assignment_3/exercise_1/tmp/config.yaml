@@ -1,0 +1,8 @@
+app: 
+  name: "bookstore-api"
+
+
+
+server: 
+  port: "9090"
+  address: "0.0.0.0"
